@@ -9,6 +9,7 @@ package org.hibernate.dialect;
 import org.hibernate.LockOptions;
 import org.hibernate.boot.model.FunctionContributions;
 import org.hibernate.dialect.function.CommonFunctionFactory;
+import org.hibernate.dialect.function.DB2SubstringFunction;
 import org.hibernate.dialect.identity.DB2IdentityColumnSupport;
 import org.hibernate.dialect.identity.DB2zIdentityColumnSupport;
 import org.hibernate.dialect.identity.IdentityColumnSupport;
@@ -65,9 +66,14 @@ public class DB2iDialect extends DB2Dialect {
 
 	@Override
 	public void initializeFunctionRegistry(FunctionContributions functionContributions) {
-		super.initializeFunctionRegistry(functionContributions);
+		super.initializeFunctionRegistry( functionContributions );
+		// DB2 for i doesn't allow code units: https://www.ibm.com/docs/en/i/7.1.0?topic=functions-substring
+		functionContributions.getFunctionRegistry().register(
+				"substring",
+				new DB2SubstringFunction( false, functionContributions.getTypeConfiguration() )
+		);
 		if ( getVersion().isSameOrAfter( 7, 2 ) ) {
-			CommonFunctionFactory functionFactory = new CommonFunctionFactory(functionContributions);
+			CommonFunctionFactory functionFactory = new CommonFunctionFactory( functionContributions );
 			functionFactory.listagg( null );
 			functionFactory.inverseDistributionOrderedSetAggregates();
 			functionFactory.hypotheticalOrderedSetAggregates_windowEmulation();
@@ -119,7 +125,7 @@ public class DB2iDialect extends DB2Dialect {
 	@Override
 	public String getQuerySequencesString() {
 		if ( getVersion().isSameOrAfter(7,3) ) {
-			return "select distinct sequence_name from qsys2.syssequences " +
+			return "select distinct sequence_schema as seqschema, sequence_name as seqname, START, minimum_value as minvalue, maximum_value as maxvalue, increment from qsys2.syssequences " +
 					"where current_schema='*LIBL' and sequence_schema in (select schema_name from qsys2.library_list_info) " +
 					"or sequence_schema=current_schema";
 		}

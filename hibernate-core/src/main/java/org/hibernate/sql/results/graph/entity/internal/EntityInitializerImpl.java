@@ -959,7 +959,7 @@ public class EntityInitializerImpl extends AbstractInitializer<EntityInitializer
 					? entityDescriptor
 					: determineConcreteEntityDescriptor( rowProcessingState, discriminatorAssembler, entityDescriptor );
 			assert data.concreteDescriptor != null;
-			resolveEntityKey( data, lazyInitializer.getIdentifier() );
+			resolveEntityKey( data, lazyInitializer.getInternalIdentifier() );
 			data.entityHolder = persistenceContext.claimEntityHolderIfPossible(
 					data.entityKey,
 					null,
@@ -974,7 +974,7 @@ public class EntityInitializerImpl extends AbstractInitializer<EntityInitializer
 		else {
 			data.entityInstanceForNotify = lazyInitializer.getImplementation();
 			data.concreteDescriptor = session.getEntityPersister( null, data.entityInstanceForNotify );
-			resolveEntityKey( data, lazyInitializer.getIdentifier() );
+			resolveEntityKey( data, lazyInitializer.getInternalIdentifier() );
 			data.entityHolder = persistenceContext.getEntityHolder( data.entityKey );
 			// Even though the lazyInitializer reports it is initialized, check if the entity holder reports initialized,
 			// because in a nested initialization scenario, this nested initializer must initialize the entity
@@ -1102,6 +1102,10 @@ public class EntityInitializerImpl extends AbstractInitializer<EntityInitializer
 				else if ( data.entityHolder.getEntityInitializer() != this ) {
 					data.setState( State.INITIALIZED );
 				}
+				else if ( data.shallowCached ) {
+					// For shallow cached entities, only the id is available, so ensure we load the data immediately
+					data.setInstance( data.entityInstanceForNotify = resolveEntityInstance( data ) );
+				}
 			}
 			else if ( ( entityFromExecutionContext = getEntityFromExecutionContext( data ) ) != null ) {
 				// This is the entity to refresh, so don't set the state to initialized
@@ -1214,7 +1218,7 @@ public class EntityInitializerImpl extends AbstractInitializer<EntityInitializer
 			return resolved;
 		}
 		else {
-			if ( rowProcessingState.isQueryCacheHit() && entityDescriptor.useShallowQueryCacheLayout() ) {
+			if ( data.shallowCached ) {
 				// We must load the entity this way, because the query cache entry contains only the primary key
 				data.setState( State.INITIALIZED );
 				final SharedSessionContractImplementor session = rowProcessingState.getSession();
@@ -1634,6 +1638,10 @@ public class EntityInitializerImpl extends AbstractInitializer<EntityInitializer
 						castNonNull( discriminatorAssembler ),
 						entityDescriptor
 				);
+				if ( data.concreteDescriptor == null ) {
+					// this should imply the entity is missing
+					return;
+				}
 			}
 		}
 		resolveEntityState( data );
@@ -1788,6 +1796,11 @@ public class EntityInitializerImpl extends AbstractInitializer<EntityInitializer
 	@Override
 	public String toString() {
 		return "EntityJoinedFetchInitializer(" + LoggingHelper.toLoggableString( getNavigablePath() ) + ")";
+	}
+
+	@Override
+	public Object getResolvedInstanceNoProxy(EntityInitializerData data) {
+		return data.entityInstanceForNotify;
 	}
 
 	//#########################

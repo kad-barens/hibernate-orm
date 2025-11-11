@@ -119,16 +119,12 @@ stage('Build') {
 									state[buildEnv.tag]['containerName'] = "edb"
 									break;
 								case "sybase_jconn":
-									docker.withRegistry('https://index.docker.io/v1/', 'hibernateci.hub.docker.com') {
-										docker.image('nguoianphu/docker-sybase').pull()
-									}
+									docker.image('nguoianphu/docker-sybase').pull()
 									sh "./docker_db.sh sybase"
 									state[buildEnv.tag]['containerName'] = "sybase"
 									break;
 								case "cockroachdb":
-									docker.withRegistry('https://index.docker.io/v1/', 'hibernateci.hub.docker.com') {
-										docker.image('cockroachdb/cockroach:v23.1.12').pull()
-									}
+									docker.image('cockroachdb/cockroach:v23.1.12').pull()
 									sh "./docker_db.sh cockroachdb"
 									state[buildEnv.tag]['containerName'] = "cockroach"
 									break;
@@ -220,7 +216,7 @@ void ciBuild(buildEnv, String args) {
 
 		// On untrusted nodes, we use the same access key as for PRs:
 		// it has limited access, essentially it can only push build scans.
-		def develocityCredentialsId = buildEnv.node ? 'ge.hibernate.org-access-key-pr' : 'ge.hibernate.org-access-key'
+		def develocityCredentialsId = buildEnv.node ? 'develocity.commonhaus.dev-access-key-pr' : 'develocity.commonhaus.dev-access-key'
 
 		withCredentials([string(credentialsId: develocityCredentialsId,
 				variable: 'DEVELOCITY_ACCESS_KEY')]) {
@@ -235,7 +231,7 @@ void ciBuild(buildEnv, String args) {
 		tryFinally({
 			sh "./ci/build.sh $args"
 		}, { // Finally
-			withCredentials([string(credentialsId: 'ge.hibernate.org-access-key-pr',
+			withCredentials([string(credentialsId: 'develocity.commonhaus.dev-access-key-pr',
 					variable: 'DEVELOCITY_ACCESS_KEY')]) {
 				withGradle { // withDevelocity, actually: https://plugins.jenkins.io/gradle/#plugin-content-capturing-build-scans-from-jenkins-pipeline
 					// Don't fail a build if publishing fails
